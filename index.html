@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Central de Auditoria | Ticket Manager & Vercel Proxy</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--navy:#142943;--blue:#2563eb;--bg:#f3f6fb;--line:#e2e8f0;--muted:#64748b;--ink:#17243a;--success:#16a34a;--danger:#dc2626;--priority-bg:#fef3c7;--priority-text:#b45309;--priority-border:#fde68a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Segoe UI,Arial,sans-serif}
+.top{height:68px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.brand{font-size:18px;font-weight:750}.brand span{background:#2f6ce5;padding:9px 11px;border-radius:10px;margin-right:10px}
+.status{font-size:12px;color:#dbeafe}
+.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:650;cursor:pointer}
+.primary{background:var(--blue);color:#fff}.secondary{background:#edf2f8;color:var(--ink);border:1px solid var(--line)}
+.ai-btn{background:linear-gradient(135deg, #1d4ed8, #2563eb);color:#fff;border:0;padding:10px 16px;border-radius:9px;font-weight:700;cursor:pointer}
+.layout{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
+aside{background:white;border-right:1px solid var(--line);padding:20px 12px}
+.nav{display:block;width:100%;text-align:left;border:0;background:transparent;padding:12px;border-radius:9px;color:#526178;margin:3px 0;cursor:pointer}
+.nav.active,.nav:hover{background:#eaf1ff;color:#1749ad}
+main{padding:26px;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.eyebrow{font-size:11px;letter-spacing:1.4px;color:var(--blue);font-weight:700}.head h1{font-size:27px;margin:4px 0}
+.muted{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.charts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:20px}
+.metric,.panel,.chart-card{background:white;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 22px #1429430b}
+.chart-card{padding:18px}
+.chart-card h3{margin:0 0 14px 0;font-size:14px;color:var(--navy)}
+.metric{padding:17px}.metric label{color:var(--muted);font-size:12px}.value{font-size:28px;font-weight:800;margin:12px 0 4px}
+.panel{overflow:hidden;margin-bottom:18px}
+.panelhead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.panelhead h2{font-size:15px;margin:0}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.field{padding:10px;border:1px solid #d6dfeb;border-radius:9px;background:#fff;min-width:130px}
+.search{min-width:230px}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}
+th{background:#f8fafd;color:#66758b;text-transform:uppercase;font-size:10px;letter-spacing:.5px;text-align:left}
+th,td{padding:12px 14px;border-bottom:1px solid #edf1f6;max-width:380px;overflow:hidden;text-overflow:ellipsis}
+tr:hover td{background:#f8fbff}
+.pill{display:inline-flex;align-items:center;gap:4px;background:#edf2f8;color:#4b5b72;padding:4px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.pill.priority{background:var(--priority-bg);color:var(--priority-text);border:1px solid var(--priority-border)}
+.pill.bad{background:#fee2e2;color:#991b1b}
+.pill.good{background:#dcfce7;color:#166534}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.notice{padding:12px;border-radius:9px;margin-bottom:14px;display:none}
+.hidden{display:none!important}
+label{display:block;font-size:12px;font-weight:650;margin:13px 0 6px}
+input, select{width:100%;padding:10px;border:1px solid #d6dfeb;border-radius:9px;font-family:inherit}
+.form-group{margin-bottom:16px;max-width:600px}
+.foot{font-size:11px;color:#8793a5;padding:6px 0 20px}
+.ticket-btn{background:transparent;border:0;color:var(--blue);font-weight:700;cursor:pointer;padding:0;text-decoration:underline}
+.date-filter-group{display:flex;align-items:center;gap:8px;background:#f8fafc;padding:12px 18px;border-radius:12px;border:1px solid #d6dfeb;flex-wrap:wrap;margin-bottom:20px}
+.date-filter-group label{margin:0;font-size:12px;color:var(--muted);font-weight:600}
+.date-filter-group input,.date-filter-group select{padding:6px 10px;width:auto;font-size:12px}
+</style></head>
+<body>
+<header class="top"><div class="brand"><span>✓</span>Central de Auditoria | Vercel Proxy</div><div><span class="status" id="status">Pronto para Sincronizar</span></div></header>
+
+<div class="layout"><aside>
+  <button class="nav active" data-page="overview">▦ Visão geral</button>
+  <button class="nav" data-page="capacityAudit">⏱ Auditoria de Jornada (8h)</button>
+  <button class="nav" data-page="projectAudit">🚀 Auditoria de Projetos</button>
+  <button class="nav" data-page="tickets">☷ Fila de chamados</button>
+  <button class="nav" data-page="people">◷ Horas por colaborador</button>
+  <button class="nav" data-page="settings">⚙ Configurar API Movidesk</button>
+</aside>
+<main>
+<div class="head"><div><div class="eyebrow">QUALIDADE • OPERAÇÃO</div><h1 id="title">Visão geral</h1><div class="muted" id="subtitle">Acompanhe os indicadores integrados via Vercel.</div></div><div class="tools"><button id="btnSyncMovidesk" class="ai-btn">🔄 Sincronizar via Vercel Proxy</button><button id="refresh" class="btn secondary">↻ Atualizar</button><button id="export" class="btn primary">Exportar Excel</button></div></div>
+
+<div class="date-filter-group">
+  <label>🗓 Início:</label><input type="date" id="globalStartDate">
+  <label>🗓 Fim:</label><input type="date" id="globalEndDate">
+  <span style="color:#cbd5e1">|</span>
+  <label>🏢 Setor:</label><select id="globalSectorFilter"><option value="todos">Todos</option></select>
+  <span style="color:#cbd5e1">|</span>
+  <label>👤 Colaborador:</label><select id="globalColabFilter"><option value="todos">Todos</option></select>
+  <button id="btnApplyGlobalFilters" class="btn primary" style="padding:6px 14px;">Filtrar</button>
+  <button id="btnResetGlobalFilters" class="btn secondary" style="padding:6px 14px;">Limpar</button>
+</div>
+
+<!-- VISÃO GERAL -->
+<section id="overviewPage">
+<div class="grid">
+  <div class="metric"><label>Chamados pendentes</label><div id="pendingN" class="value">0</div></div>
+  <div class="metric"><label>Com 7+ dias</label><div id="oldN" class="value">0</div></div>
+  <div class="metric"><label>Sem horas apontadas</label><div id="noHoursN" class="value">0</div></div>
+  <div class="metric"><label>Horas acumuladas</label><div id="hoursN" class="value">0 h</div></div>
+</div>
+<div class="charts-grid">
+  <div class="chart-card"><h3>📊 Horas por Responsável</h3><canvas id="chartHoursAgent" height="220"></canvas></div>
+  <div class="chart-card"><h3>📌 Status dos Chamados</h3><canvas id="chartStatus" height="220"></canvas></div>
+</div>
+<div class="panel">
+  <div class="panelhead"><h2>Chamados prioritários e antigos</h2></div>
+  <div class="tablewrap"><table><thead><tr><th>Chamado</th><th>Cliente</th><th>Status</th><th>Responsável</th><th>Horas</th><th>Idade</th></tr></thead><tbody id="topRows"></tbody></table></div>
+</div>
+</section>
+
+<!-- AUDITORIA DE JORNADA -->
+<section id="capacityAuditPage" class="hidden">
+<div class="panel">
+  <div class="panelhead"><h2>Auditoria de Carga Horária (8h/Dia - Regra 80%)</h2></div>
+  <div class="tablewrap"><table id="tableCapacityAudit"><thead><tr><th>Colaborador</th><th>Setor</th><th>Data</th><th>Horas</th><th>Aderência</th><th>Status</th></tr></thead><tbody id="capacityAuditRows"></tbody></table></div>
+</div>
+</section>
+
+<!-- AUDITORIA DE PROJETOS -->
+<section id="projectAuditPage" class="hidden">
+<div class="panel">
+  <div class="panelhead"><h2>Análise de Projetos (Limite 4h/dia)</h2></div>
+  <div class="tablewrap"><table id="tableProjectAudit"><thead><tr><th>Chamado</th><th>Cliente</th><th>Setor</th><th>Responsável</th><th>Horas Apontadas</th><th>Status</th></tr></thead><tbody id="projectAuditRows"></tbody></table></div>
+</div>
+</section>
+
+<!-- FILA -->
+<section id="ticketsPage" class="hidden">
+<div class="panel">
+  <div class="panelhead"><h2>Fila Completa</h2><input class="field search" id="search" placeholder="Pesquisar..."></div>
+  <div class="tablewrap"><table id="tableTickets"><thead><tr><th>ID</th><th>Assunto</th><th>Cliente</th><th>Status</th><th>Setor</th><th>Responsável</th><th>Horas</th></tr></thead><tbody id="ticketRows"></tbody></table></div>
+</div>
+</section>
+
+<!-- COLABORADORES -->
+<section id="peoplePage" class="hidden">
+<div class="panel">
+  <div class="panelhead"><h2>Apontamentos por Colaborador</h2></div>
+  <div class="tablewrap"><table><thead><tr><th>Colaborador</th><th>Setor</th><th>Total Chamados</th><th>Horas Totais</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+</div>
+</section>
+
+<!-- CONFIGURAÇÕES / API -->
+<section id="settingsPage" class="hidden">
+<div class="panel" style="padding:24px">
+  <h2>Configurar Conexão com a API Movidesk (Via Vercel Proxy)</h2>
+  <p class="muted">Insira as credenciais do seu Movidesk para sincronizar através do proxy serverless.</p>
+  <div class="form-group" style="margin-top:16px">
+    <label>Domínio do Movidesk</label>
+    <input type="text" id="movideskDomain" placeholder="https://arquem.movidesk.com">
+  </div>
+  <div class="form-group">
+    <label>Token de API do Movidesk</label>
+    <input type="text" id="movideskToken" placeholder="Insira seu token">
+  </div>
+  <div style="display:flex;gap:10px;margin-top:16px">
+    <button id="btnSaveDomain" class="btn primary">Salvar Configurações</button>
+    <button id="btnSettingsSync" class="ai-btn">🔄 Sincronizar Agora via Vercel</button>
+  </div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
+  <div class="form-group">
+    <label>Alternativa: Importar Relatório Excel (.xlsx)</label>
+    <input type="file" id="fileInput" accept=".xlsx, .xls, .csv">
+  </div>
+</div>
+</section>
+
+<div class="foot">Central de Auditoria • Guardiões do Bravo</div></main></div>
+
+<script>
+(() => {
+const DEMO_DATA = [
+  { ticket_id: "97233", client_name: "EMBRAPOL", subject: "Implantação Fase 2", status: "Fila", sector: "Implantação", owner_name: "Guilherme Bonato", total_hours: 16.78, age_days: 77, synced_at: "2026-10-20" },
+  { ticket_id: "99940", client_name: "OTICA LUX", subject: "Trava Comercial", status: "Em Execução", sector: "Comercial", owner_name: "Guilherme Bonato", total_hours: 6.98, age_days: 31, synced_at: "2026-10-29" },
+  { ticket_id: "101191", client_name: "ARQUEM", subject: "Projeto Estratégico API", status: "Em Execução", sector: "Diretoria", owner_name: "Felipe Cavassin", total_hours: 26.78, age_days: 8, synced_at: "2026-10-29" }
+];
+
+const $=id=>document.getElementById(id);
+let rawTickets = [], filteredTickets = [], people = [];
+let chartAgentInstance = null, chartStatusInstance = null;
+
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=v=>Number(v||0).toLocaleString("pt-BR");
+const hours=v=>Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+async function syncMovideskVercelProxy() {
+  let domain = localStorage.getItem("movidesk_domain") || $("movideskDomain").value.trim();
+  let token = localStorage.getItem("movidesk_token") || $("movideskToken").value.trim();
+
+  if (!domain || !token) {
+    alert("Por favor, configure o Domínio e o Token de API nas configurações.");
+    document.querySelector('[data-page="settings"]').click();
+    return;
+  }
+
+  $("status").textContent = "🔄 Sincronizando via Vercel Proxy...";
+  alert("Iniciando requisição através da função serverless da Vercel...");
+
+  try {
+    const proxyUrl = `/api/movidesk?domain=${encodeURIComponent(domain)}&token=${encodeURIComponent(token)}&$top=50&$skip=0`;
+    const response = await fetch(proxyUrl);
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.error || `Erro HTTP: ${response.status}`);
+    }
+
+    const apiTickets = await response.json();
+
+    if (!Array.isArray(apiTickets) || apiTickets.length === 0) {
+      alert("A API retornou 0 chamados.");
+      $("status").textContent = "Pronto";
+      return;
+    }
+
+    const formatted = apiTickets.map(t => ({
+      ticket_id: String(t.id || ""),
+      client_name: t.clients && t.clients.length > 0 ? (t.clients[0].businessName || t.clients[0].name) : "Cliente",
+      subject: t.subject || "Sem Assunto",
+      status: t.status || "Aberto",
+      sector: t.serviceFirstLevel || (t.ownerTeam ? t.ownerTeam.name : "Suporte"),
+      owner_name: t.owner ? t.owner.name : "Não Atribuído",
+      total_hours: Number(t.stoppedTime || 0),
+      age_days: t.createdDate ? Math.floor((new Date() - new Date(t.createdDate)) / (1000 * 60 * 60 * 24)) : 0,
+      synced_at: new Date().toISOString().split('T')[0]
+    }));
+
+    localStorage.setItem("local_audit_tickets", JSON.stringify(formatted));
+    $("status").textContent = `Conectado (${formatted.length} tickets)`;
+    alert(`Sucesso! ${formatted.length} chamados sincronizados via Vercel.`);
+    loadData();
+
+  } catch (err) {
+    console.error("Erro na sincronização:", err);
+    alert("Falha na sincronização via Vercel Proxy: " + err.message);
+    $("status").textContent = "Erro na API";
+  }
+}
+
+function loadData() {
+  if ($("movideskDomain")) $("movideskDomain").value = localStorage.getItem("movidesk_domain") || "https://arquem.movidesk.com";
+  if ($("movideskToken")) $("movideskToken").value = localStorage.getItem("movidesk_token") || "";
+
+  const stored = localStorage.getItem("local_audit_tickets");
+  rawTickets = stored ? JSON.parse(stored) : DEMO_DATA;
+  populateDropdowns();
+  applyFilters();
+}
+
+function populateDropdowns() {
+  const colabs = new Set(), sectors = new Set();
+  rawTickets.forEach(t => { if(t.owner_name) colabs.add(t.owner_name); if(t.sector) sectors.add(t.sector); });
+  $("globalColabFilter").innerHTML = '<option value="todos">Todos</option>' + [...colabs].map(c=>`<option value="${c}">${c}</option>`).join('');
+  $("globalSectorFilter").innerHTML = '<option value="todos">Todos</option>' + [...sectors].map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
+function applyFilters() {
+  const sec = $("globalSectorFilter").value, colab = $("globalColabFilter").value;
+  filteredTickets = rawTickets.filter(t => {
+    if(sec !== "todos" && t.sector !== sec) return false;
+    if(colab !== "todos" && t.owner_name !== colab) return false;
+    return true;
+  });
+  processPeople();
+  renderAll();
+}
+
+function processPeople() {
+  const map = {};
+  filteredTickets.forEach(t => {
+    const name = t.owner_name || "Geral", h = Number(t.total_hours||0);
+    if(!map[name]) map[name] = { name, sector: t.sector || "Geral", count: 0, hours: 0 };
+    map[name].count++; map[name].hours += h;
+  });
+  people = Object.values(map);
+}
+
+function renderAll() {
+  $("pendingN").textContent = num(filteredTickets.length);
+  $("oldN").textContent = num(filteredTickets.filter(t => t.age_days >= 7).length);
+  $("noHoursN").textContent = num(filteredTickets.filter(t => Number(t.total_hours||0) === 0).length);
+  $("hoursN").textContent = hours(filteredTickets.reduce((a,b)=>a+Number(b.total_hours||0),0)) + " h";
+
+  $("topRows").innerHTML = filteredTickets.slice(0,5).map(t=>`<tr><td>#${esc(t.ticket_id)}</td><td>${esc(t.client_name)}</td><td>${esc(t.status)}</td><td>${esc(t.owner_name)}</td><td>${hours(t.total_hours)}h</td><td>${t.age_days}d</td></tr>`).join('');
+  $("ticketRows").innerHTML = filteredTickets.map(t=>`<tr><td>#${esc(t.ticket_id)}</td><td>${esc(t.subject)}</td><td>${esc(t.client_name)}</td><td>${esc(t.status)}</td><td>${esc(t.sector)}</td><td>${esc(t.owner_name)}</td><td>${hours(t.total_hours)}h</td></tr>`).join('');
+  $("peopleRows").innerHTML = people.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td>${esc(p.sector)}</td><td>${p.count}</td><td><b>${hours(p.hours)}h</b></td></tr>`).join('');
+  
+  $("capacityAuditRows").innerHTML = filteredTickets.map(t=>`<tr><td>${esc(t.owner_name)}</td><td>${esc(t.sector)}</td><td>${t.synced_at}</td><td>${hours(t.total_hours)}h</td><td>100%</td><td><span class="pill good">OK</span></td></tr>`).join('');
+  $("projectAuditRows").innerHTML = filteredTickets.map(t=>`<tr><td>#${esc(t.ticket_id)}</td><td>${esc(t.client_name)}</td><td>${esc(t.sector)}</td><td>${esc(t.owner_name)}</td><td>${hours(t.total_hours)}h</td><td>Normal</td></tr>`).join('');
+  
+  renderCharts();
+}
+
+function renderCharts() {
+  if (chartAgentInstance) chartAgentInstance.destroy();
+  if (chartStatusInstance) chartStatusInstance.destroy();
+
+  chartAgentInstance = new Chart($('chartHoursAgent'), {
+    type: 'bar',
+    data: { labels: people.map(p => p.name), datasets: [{ label: 'Horas', data: people.map(p => p.hours), backgroundColor: '#2563eb' }] },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+
+  chartStatusInstance = new Chart($('chartStatus'), {
+    type: 'doughnut',
+    data: { labels: ['Fila', 'Em Execução'], datasets: [{ data: [filteredTickets.length, 0], backgroundColor: ['#f59e0b', '#10b981'] }] },
+    options: { responsive: true }
+  });
+}
+
+document.querySelectorAll(".nav").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".nav").forEach(n => n.classList.remove("active"));
+  b.classList.add("active");
+  const page = b.dataset.page;
+  ["overview","capacityAudit","projectAudit","tickets","people","settings"].forEach(p => {
+    const el = $(p + "Page"); if(el) el.classList.toggle("hidden", p !== page);
+  });
+}));
+
+$("btnSaveDomain").addEventListener("click", () => {
+  localStorage.setItem("movidesk_domain", $("movideskDomain").value.trim());
+  localStorage.setItem("movidesk_token", $("movideskToken").value.trim());
+  alert("Salvo com sucesso!");
+});
+
+$("btnSyncMovidesk").addEventListener("click", syncMovideskVercelProxy);
+$("btnSettingsSync").addEventListener("click", syncMovideskVercelProxy);
+$("btnApplyGlobalFilters").addEventListener("click", applyFilters);
+$("btnResetGlobalFilters").addEventListener("click", () => { $("globalSectorFilter").value = "todos"; $("globalColabFilter").value = "todos"; applyFilters(); });
+$("refresh").addEventListener("click", loadData);
+
+$("fileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const data = new Uint8Array(evt.target.result);
+    const wb = XLSX.read(data, {type: 'array'});
+    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    if(json.length > 0) {
+      const parsed = json.map(r => ({
+        ticket_id: String(r["Número"] || r["Ticket"] || "1"),
+        client_name: r["Cliente"] || "Cliente",
+        subject: r["Assunto"] || "Assunto",
+        status: r["Status"] || "Aberto",
+        sector: String(r["Setor"] || "Geral"),
+        owner_name: r["Responsável"] || "Responsável",
+        total_hours: parseFloat(String(r["Horas apontadas"]||0)) || 0,
+        age_days: 5, synced_at: "2026-10-29"
+      }));
+      localStorage.setItem("local_audit_tickets", JSON.stringify(parsed));
+      loadData();
+      alert("Relatório importado com sucesso!");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+loadData();
+})();
+</script></body></html>
+
