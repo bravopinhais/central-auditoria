@@ -1,17 +1,268 @@
-# 🏢 Gestão Condominial - Painel de Pendências
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Condominial - Painel de Pendências</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-building-shield"></i> Gestão Condominial
+                </h1>
+                <p class="text-indigo-200 text-sm mt-1">Acompanhamento e controle de pendências</p>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-plus"></i> Nova Pendência
+                </button>
+                <button onclick="window.print()" class="bg-indigo-700 hover:bg-indigo-800 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-print"></i> Imprimir
+                </button>
+                <button onclick="resetData()" class="bg-rose-600 hover:bg-rose-700 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm" title="Restaurar originais">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+    </header>
 
-Painel web interativo desenvolvido para o acompanhamento e organização de manutenções, melhorias e pendências do condomínio.
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-8">
+        <!-- Indicadores de Progresso -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-semibold text-slate-600">Progresso Geral</span>
+                <span id="progress-text" class="text-sm font-bold text-indigo-600">0%</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div id="progress-bar" class="bg-indigo-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-slate-100 text-center">
+                <div>
+                    <span class="block text-2xl font-bold text-slate-700" id="stat-total">0</span>
+                    <span class="text-xs text-slate-500 uppercase tracking-wider">Total</span>
+                </div>
+                <div>
+                    <span class="block text-2xl font-bold text-amber-600" id="stat-pending">0</span>
+                    <span class="text-xs text-slate-500 uppercase tracking-wider">Pendentes</span>
+                </div>
+                <div>
+                    <span class="block text-2xl font-bold text-emerald-600" id="stat-completed">0</span>
+                    <span class="text-xs text-slate-500 uppercase tracking-wider">Concluídas</span>
+                </div>
+            </div>
+        </div>
 
-## 🚀 Funcionalidades
-* **Gerenciamento Completo:** Adicionar, editar, excluir e marcar itens como concluídos.
-* **Barra de Progresso:** Acompanhamento visual em tempo real do andamento das demandas.
-* **Filtros e Busca:** Encontre rapidamente pendências por status ou palavra-chave.
-* **Persistência Local:** Dados salvos automaticamente no navegador via `localStorage`.
-* **Modo Impressão:** Otimizado para gerar relatórios limpos em papel ou PDF.
+        <!-- Filtros e Busca -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-6 justify-between items-center">
+            <div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+                <button onclick="filterTasks('all')" id="filter-all" class="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white transition">Todas</button>
+                <button onclick="filterTasks('pending')" id="filter-pending" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition">Pendentes</button>
+                <button onclick="filterTasks('completed')" id="filter-completed" class="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition">Concluídas</button>
+            </div>
+            <div class="w-full sm:w-72 relative">
+                <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
+                <input type="text" id="search-input" oninput="searchTasks()" placeholder="Buscar pendência..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
 
-## 🌐 Publicação no GitHub Pages
-1. Crie um repositório público no GitHub.
-2. Faça o upload dos arquivos `index.html` e `README.md`.
-3. Vá em **Settings** > **Pages**.
-4. Na seção *Build and deployment*, escolha a branch `main` (ou `master`) e clique em **Save**.
-5. O link do seu site estará disponível instantaneamente!
+        <!-- Lista de Tarefas -->
+        <div id="task-list" class="space-y-3"></div>
+    </main>
+
+    <!-- Modal Adicionar / Editar -->
+    <div id="task-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
+            <h2 id="modal-title" class="text-lg font-bold text-slate-800 mb-4">Nova Pendência</h2>
+            <form id="task-form" onsubmit="handleFormSubmit(event)">
+                <input type="hidden" id="task-id">
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Título</label>
+                    <input type="text" id="task-title-input" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Categoria</label>
+                    <select id="task-category-input" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                        <option value="Infraestrutura">Infraestrutura</option>
+                        <option value="Segurança">Segurança</option>
+                        <option value="Projetos">Projetos</option>
+                        <option value="Operacional">Operacional</option>
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Descrição / Observações</label>
+                    <textarea id="task-desc-input" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-200 transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        Gerenciador Condominial &bull; Hospedado no GitHub Pages
+    </footer>
+
+    <script>
+        const initialTasks = [
+            { id: 1, category: "Infraestrutura", title: "Pintura de vagas de visitantes", desc: "Optado por instalar placas devido ao desgaste das marcações.", status: false },
+            { id: 2, category: "Projetos", title: "Análise de viabilidade do mercadinho e ponto elétrico", desc: "Verificar retorno financeiro e alinhar com a Copel para o ponto elétrico.", status: false },
+            { id: 3, category: "Segurança", title: "Instalação de câmeras e controle de acesso", desc: "Salão, quiosque e brinquedoteca (Jairo confirmou que vai instalar).", status: false },
+            { id: 4, category: "Segurança", title: "Alinhamento de acesso às câmeras", desc: "Possibilidade de acesso total para ajuda com B.O.s e notificações mediante termo de responsabilidade.", status: false },
+            { id: 5, category: "Operacional", title: "Procedimento de falta de luz", desc: "Em caso de falha com nobreak, avisar Wagner e Jairo simultaneamente para agilizar.", status: false },
+            { id: 6, category: "Operacional", title: "Ajuste do portão de veículos", desc: "Reduzir o tempo de fechamento automático após a passagem do carro para 30 ou 20 segundos.", status: false },
+            { id: 7, category: "Segurança", title: "Uso restrito do acesso facial dos conselheiros", desc: "Acesso a todos os blocos liberado exclusivamente para casos de emergência.", status: false }
+        ];
+
+        let tasks = JSON.parse(localStorage.getItem('condo_tasks_v2')) || initialTasks;
+        let currentFilter = 'all';
+        let searchQuery = '';
+
+        function saveTasks() {
+            localStorage.setItem('condo_tasks_v2', JSON.stringify(tasks));
+            renderTasks();
+            updateStats();
+        }
+
+        function toggleTask(id) {
+            tasks = tasks.map(t => t.id === id ? { ...t, status: !t.status } : t);
+            saveTasks();
+        }
+
+        function filterTasks(filter) {
+            currentFilter = filter;
+            ['all', 'pending', 'completed'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                btn.className = f === filter 
+                    ? "px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white transition"
+                    : "px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition";
+            });
+            renderTasks();
+        }
+
+        function searchTasks() {
+            searchQuery = document.getElementById('search-input').value.toLowerCase();
+            renderTasks();
+        }
+
+        function updateStats() {
+            const total = tasks.length;
+            const completed = tasks.filter(t => t.status).length;
+            const pending = total - completed;
+            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-pending').textContent = pending;
+            document.getElementById('stat-completed').textContent = completed;
+            document.getElementById('progress-text').textContent = progress + '%';
+            document.getElementById('progress-bar').style.width = progress + '%';
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('task-list');
+            let filtered = tasks.filter(t => {
+                if (currentFilter === 'pending') return !t.status;
+                if (currentFilter === 'completed') return t.status;
+                return true;
+            }).filter(t => t.title.toLowerCase().includes(searchQuery) || t.desc.toLowerCase().includes(searchQuery) || t.category.toLowerCase().includes(searchQuery));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl p-8 text-center border border-slate-200">
+                        <i class="fa-solid fa-folder-open text-slate-300 text-3xl mb-2"></i>
+                        <p class="text-slate-500 text-sm">Nenhuma pendência encontrada.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(t => `
+                <div class="bg-white border ${t.status ? 'border-emerald-200 bg-emerald-50/25' : 'border-slate-200'} rounded-xl p-4 flex items-start gap-4 transition shadow-sm hover:shadow">
+                    <input type="checkbox" ${t.status ? 'checked' : ''} onclick="toggleTask(${t.id})" class="mt-1 h-5 w-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
+                    <div class="flex-grow">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${getBadgeStyle(t.category)}">${t.category}</span>
+                            <div class="flex gap-2">
+                                <button onclick="openModal(${t.id})" class="text-slate-400 hover:text-indigo-600 text-xs transition" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="deleteTask(${t.id})" class="text-slate-400 hover:text-rose-600 text-xs transition" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <h2 class="font-medium text-slate-800 ${t.status ? 'line-through text-slate-400' : ''}">${t.title}</h2>
+                        <p class="text-xs text-slate-500 mt-1 ${t.status ? 'text-slate-400' : ''}">${t.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getBadgeStyle(cat) {
+            switch(cat) {
+                case 'Infraestrutura': return 'bg-amber-100 text-amber-800';
+                case 'Projetos': return 'bg-blue-100 text-blue-800';
+                case 'Segurança': return 'bg-purple-100 text-purple-800';
+                case 'Operacional': return 'bg-emerald-100 text-emerald-800';
+                default: return 'bg-slate-100 text-slate-800';
+            }
+        }
+
+        function openModal(id = null) {
+            document.getElementById('task-modal').classList.remove('hidden');
+            if (id) {
+                document.getElementById('modal-title').textContent = 'Editar Pendência';
+                const task = tasks.find(t => t.id === id);
+                document.getElementById('task-id').value = task.id;
+                document.getElementById('task-title-input').value = task.title;
+                document.getElementById('task-category-input').value = task.category;
+                document.getElementById('task-desc-input').value = task.desc;
+            } else {
+                document.getElementById('modal-title').textContent = 'Nova Pendência';
+                document.getElementById('task-form').reset();
+                document.getElementById('task-id').value = '';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('task-id').value;
+            const title = document.getElementById('task-title-input').value;
+            const category = document.getElementById('task-category-input').value;
+            const desc = document.getElementById('task-desc-input').value;
+
+            if (id) {
+                tasks = tasks.map(t => t.id == id ? { ...t, title, category, desc } : t);
+            } else {
+                const newTask = { id: Date.now(), title, category, desc, status: false };
+                tasks.push(newTask);
+            }
+
+            saveTasks();
+            closeModal();
+        }
+
+        function deleteTask(id) {
+            if (confirm('Deseja realmente excluir esta pendência?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                saveTasks();
+            }
+        }
+
+        function resetData() {
+            if (confirm('Deseja restaurar as pendências padrão iniciais?')) {
+                tasks = JSON.parse(JSON.stringify(initialTasks));
+                saveTasks();
+            }
+        }
+
+        updateStats();
+        renderTasks();
+    </script>
+</body>
+</html>
